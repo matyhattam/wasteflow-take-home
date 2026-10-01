@@ -1,0 +1,56 @@
+- name: Require the supported platform
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.distribution == "Ubuntu"
+      - ansible_facts.distribution_version == "24.04"
+      - ansible_facts.service_mgr == "systemd"
+    fail_msg: This example targets Ubuntu 24.04 with systemd.
+
+- name: Check if there is enough disk space
+  ansible.builtin.assert:
+    that:
+      - (root.size_available / root.size_total) * 100 >= 20
+    fail_msg: "Root has less than 20% free space"
+  vars:
+    root: "{{ ansible_facts.mounts | selectattr('mount', 'equalto', '/') | first }}"
+
+- name: Validate application configuration
+  ansible.builtin.assert:
+    that:
+      - sensor_agent_id is match('^[A-Za-z0-9_.-]+$')
+      - sensor_agent_version is defined
+      - sensor_agent_port | int >= 1024
+      - sensor_agent_port | int <= 65535
+      - sensor_agent_poll_interval | float > 0
+      - sensor_agent_poll_interval | float <= 60
+    fail_msg: Invalid or missing sensor-agent configuration.
+
+- name: Check that the wheel exists on the source machine
+  ansible.builtin.stat:
+    path: "{{ wheel_dir }}/{{ wheel_name }}"
+  delegate_to: localhost
+  become: false
+  register: wheel_file
+
+- name: Require a built wheel
+  ansible.builtin.assert:
+    that:
+      - wheel_file.stat.isreg | default(false)
+    fail_msg: "Missing wheel: {{ wheel_name }}"
+
+- name: Install Python runtime + dependencies support
+  ansible.builtin.apt:
+    name:
+      - python3
+      - python3-venv
+      - openssh-server
+      - curl
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Enable and start SSH
+  ansible.builtin.systemd:
+    name: ssh
+    enabled: true
+    state: started

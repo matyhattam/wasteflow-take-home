@@ -1,0 +1,30 @@
+- name: Create unprivileged service user
+  ansible.builtin.user:
+    name: "{{ sensor_agent_user }}"
+    system: true
+    create_home: false
+    shell: /usr/sbin/nologin
+
+- name: Create the configuration directory
+  ansible.builtin.file:
+    path: /etc/sensor-agent
+    state: directory
+    owner: root
+    group: sensor-agent
+    mode: "0750"
+
+- name: Write application configuration
+  ansible.builtin.template:
+    src: sensor-agent.env.j2
+    dest: "{{ deployments_dir }}/{{ sensor_agent_version }}/sensor-agent.env"
+    owner: root
+    group: sensor-agent
+    mode: "0640"
+
+- name: Write the systemd service
+  ansible.builtin.template:
+    src: sensor-agent.service.j2
+    dest: "{{ deployments_dir }}/{{ sensor_agent_version }}/sensor-agent.service"
+    owner: root
+    group: root
+    mode: "0644"

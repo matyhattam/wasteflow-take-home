@@ -1,0 +1,16 @@
+- name: Wait for the HTTP endpoint
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ sensor_agent_port }}/health"
+    status_code: 200
+  register: health
+  until: health.status == 200
+  retries: 10
+  delay: 2
+
+- name: Verify the selected release is healthy and producing samples
+  ansible.builtin.script:
+    cmd: verify_samples.py {{ sensor_agent_root }}/current/sensor-agent.env
+  args:
+    executable: /usr/bin/python3
+  timeout: 120
+  changed_when: false

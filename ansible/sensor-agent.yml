@@ -1,0 +1,25 @@
+- name: Deploy the sensor agent
+  hosts: sensor_agent
+  become: true
+  gather_facts: true
+  gather_subset:
+    - mounts
+
+  serial: 1
+
+  any_errors_fatal: true
+
+  vars:
+    sensor_agent_version: "0.0.1"
+    wheel_dir: "{{ playbook_dir }}/../dist"
+    wheel_name: "sensor_agent-{{ sensor_agent_version }}-py3-none-any.whl"
+    sensor_agent_root: "/opt/sensor-agent"
+    deployments_dir: "{{ sensor_agent_root }}/deployments"
+    sensor_agent_id: wasteflow_vm
+    sensor_agent_service: sensor-agent.service
+    sensor_agent_user: sensor-agent
+    sensor_agent_port: 8000
+    sensor_agent_poll_interval: 5
+
+  roles:
+    - sensor-agent

@@ -1,0 +1,20 @@
+[Unit]
+Description=WasteFlow sensor agent
+After=network.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=exec
+User={{ sensor_agent_user }}
+EnvironmentFile={{ deployments_dir }}/{{ sensor_agent_version }}/sensor-agent.env
+ExecStart={{ deployments_dir }}/{{ sensor_agent_version }}/venv/bin/sensor-agent
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=15
+NoNewPrivileges=true
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

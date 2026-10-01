@@ -1,0 +1,43 @@
+- name: Restore previous deployment when available
+  when: sensor_agent_previous | length > 0
+  block:
+    - name: Restore previous selection
+      ansible.builtin.file:
+        src: "{{ sensor_agent_previous }}"
+        dest: "{{ sensor_agent_root }}/current"
+        state: link
+
+    - name: Clear systemd restart limit
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - reset-failed
+          - "{{ sensor_agent_service }}"
+      changed_when: false
+
+    - name: Restart previous deployment
+      ansible.builtin.systemd_service:
+        name: "{{ sensor_agent_service }}"
+        daemon_reload: true
+        enabled: true
+        state: restarted
+
+    - name: Verify restored deployment
+      ansible.builtin.include_tasks: verify.yml
+
+- name: Check whether a unit was linked during the failed first installation
+  ansible.builtin.stat:
+    path: /etc/systemd/system/sensor-agent.service
+    follow: false
+  register: failed_first_install_unit
+  when: sensor_agent_previous | length == 0
+
+- name: Stop and disable the failed first installation
+  ansible.builtin.systemd_service:
+    name: "{{ sensor_agent_service }}"
+    daemon_reload: true
+    enabled: false
+    state: stopped
+  when:
+    - sensor_agent_previous | length == 0
+    - failed_first_install_unit.stat.exists | default(false)

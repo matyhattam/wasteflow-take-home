@@ -1,0 +1,26 @@
+- name: Select deployment
+  ansible.builtin.file:
+    src: "{{ deployments_dir }}/{{ sensor_agent_version }}"
+    dest: "{{ sensor_agent_root }}/current"
+    state: link
+  register: sensor_agent_selection
+
+- name: Link the systemd unit
+  ansible.builtin.file:
+    src: "{{ sensor_agent_root }}/current/sensor-agent.service"
+    dest: /etc/systemd/system/sensor-agent.service
+    state: link
+  register: sensor_agent_unit_link
+
+- name: Enable and run the selected deployment
+  ansible.builtin.systemd_service:
+    name: "{{ sensor_agent_service }}"
+    daemon_reload: >-
+      {{ sensor_agent_selection.changed or sensor_agent_unit_link.changed }}
+    enabled: true
+    state: >-
+      {{
+        'restarted'
+        if sensor_agent_selection.changed or sensor_agent_unit_link.changed
+        else 'started'
+      }}

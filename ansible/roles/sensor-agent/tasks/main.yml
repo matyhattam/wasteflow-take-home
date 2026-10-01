@@ -1,0 +1,51 @@
+---
+- name: Validate the target and deployment inputs
+  ansible.builtin.import_tasks: preflight.yml
+
+- name: Prepare the sensor-agent without stopping the running service
+  ansible.builtin.import_tasks: install-sensor-agent.yml
+
+- name: Inspect the current deployment
+  ansible.builtin.stat:
+    path: "{{ sensor_agent_root }}/current"
+    follow: false
+  register: sensor_agent_current
+
+- name: Remember the previous deployment
+  ansible.builtin.set_fact:
+    sensor_agent_previous: >-
+      {{
+        sensor_agent_current.stat.lnk_source
+        if sensor_agent_current.stat.islnk | default(false)
+        else ''
+      }}
+
+- name: Create the systemd service
+  ansible.builtin.import_tasks: sensor-agent-service.yml
+
+- name: Activate and verify the sensor-agent
+  block:
+    - name: Activate the sensor service
+      ansible.builtin.import_tasks: activate.yml
+
+    - name: Verify that the sensor is up and running
+      ansible.builtin.import_tasks: verify.yml
+
+  rescue:
+    - name: Remember the original deployment error
+      ansible.builtin.set_fact:
+        sensor_agent_deploy_error: >-
+          {{ ansible_failed_result.msg | default('Activation or verification failed') }}
+
+    - name: Recover from the failed deployment
+      ansible.builtin.include_tasks: rollback.yml
+
+    - name: Report the rejected deployment
+      ansible.builtin.fail:
+        msg: >-
+          Deployment failed: {{ sensor_agent_deploy_error }}.
+          {{
+            'The previous deployment was restored and verified.'
+            if sensor_agent_previous | length > 0
+            else 'No previous deployment existed; the service was stopped and disabled.'
+          }}

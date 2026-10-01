@@ -1,0 +1,24 @@
+- name: Create the release directory
+  ansible.builtin.file:
+    path: "{{ deployments_dir }}/{{ sensor_agent_version }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Copy the wheel to the VM
+  ansible.builtin.copy:
+    src: "{{ wheel_dir }}/{{ wheel_name }}"
+    dest: "{{ deployments_dir }}/{{ wheel_name }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Install the requested version into its own environment
+  ansible.builtin.pip:
+    name: sensor-agent
+    version: "{{ sensor_agent_version }}"
+    virtualenv: "{{ deployments_dir }}/{{ sensor_agent_version }}/venv"
+    virtualenv_command: /usr/bin/python3 -m venv
+    extra_args: "--no-index --no-deps --find-links={{ deployments_dir }}"
+    umask: "0022"
